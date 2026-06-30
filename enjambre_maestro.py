@@ -154,7 +154,7 @@ def cargar_mercados_seguros():
         "asunto": "Rediseno de Infraestructura: Paginas Web & SEO Avanzado",
         "asunto_en": "Infrastructure Redesign: Web & Advanced SEO Integration",
         "env_link": "STRIPE_LINK_PAGINAS_WEB_SEO",
-        "gancho_es": "reconstruimos la architecture tecnica de tu web para dominar la intencion de busqueda comercial.",
+        "gancho_es": "reconstruimos la arquitectura tecnica de tu web para dominar la intencion de busqueda comercial.",
         "gancho_en": "we build a modern headless tech stack to claim search engine real estate over commercial search intents."
     })
     lista.append({
