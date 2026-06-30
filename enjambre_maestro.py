@@ -1,8 +1,18 @@
-import os, sys, time, random, threading, json, re, requests
+import os
+import sys
+import time
+import random
+import threading
+import json
+import re
+import requests
 from datetime import datetime
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+
+# Asegura que Render transmita los prints en vivo de inmediato sin retrasos
+os.environ["PYTHONUNBUFFERED"] = "1"
 
 # ==============================================================================
 # 1. PARÁMETROS DE INFRAESTRUCTURA (PRODUCCIÓN REAL)
@@ -18,176 +28,164 @@ try:
     if OPENAI_KEY:
         from openai import OpenAI
         api_openai = OpenAI(api_key=OPENAI_KEY)
-    else: api_openai = None
-except Exception: api_openai = None
+    else:
+        api_openai = None
+except Exception:
+    api_openai = None
 
 try:
     if TAVILY_KEY:
         from tavily import TavilyClient
         api_tavily = TavilyClient(api_key=TAVILY_KEY)
-    else: api_tavily = None
-except Exception: api_tavily = None
+    else:
+        api_tavily = None
+except Exception:
+    api_tavily = None
 
 # ==============================================================================
 # 2. GESTIÓN DE ESTADO Y FILTRADOS SOBERANOS
 # ==============================================================================
 REGISTRO_EMAILS, LOGS_SISTEMA = set(), []
 METRICAS_GLOBALES = {
-    "status_motor": "Iniciando", "ventas_totales_recibidas": 0, "ingresos_acumulados_eur": 0.0,
-    "leads_unicos_cazados": 0, "busquedas_tavily_exitosas": 0, "busquedas_tavily_fallidas": 0, 
-    "emails_enviados_exito": 0, "emails_rebotados": 0, "productos_mas_vendidos": {}
+    "status_motor": "Iniciando",
+    "ventas_totales_recibidas": 0,
+    "ingresos_acumulados_eur": 0.0,
+    "leads_unicos_cazados": 0,
+    "busquedas_tavily_exitosas": 0,
+    "busquedas_tavily_fallidas": 0,
+    "emails_enviados_exito": 0,
+    "emails_rebotados": 0,
+    "productos_mas_vendidos": {}
 }
 
 EXPRESIÓN_EMAIL = re.compile(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$")
 LISTA_NEGRA_DOMINIOS = {"example.com", "ejemplo.com", "email.com", "test.com", "privacy.com", "noreply.com", "support.com", "wix.com", "wordpress.com"}
 LISTA_NEGRA_PALABRAS = {"test", "prueba", "ejemplo", "example", "noreply", "support", "soporte", "admin", "abuse", "spam", "billing", "facturas"}
 
-MERCADOS_OBJETIVO = [
-    {
-        "es": "clinica dental", "en": "dentist clinic", 
-        "asunto": "Plan de Crecimiento: Resenas de Google de 5 Estrellas", 
-        "asunto_en": "Growth Plan: 5-Star Google Reviews Drive", 
+# ==============================================================================
+# 3. CARGA DE MERCADOS ISOLADA
+# ==============================================================================
+def cargar_mercados_seguros():
+    lista = []
+    lista.append({
+        "es": "clinica dental", "en": "dentist clinic",
+        "asunto": "Plan de Crecimiento: Resenas de Google de 5 Estrellas",
+        "asunto_en": "Growth Plan: 5-Star Google Reviews Drive",
         "env_link": "STRIPE_LINK_RESENAS_GOOGLE",
-        "gancho_es": "vimos que tu clínica tiene reseñas que podrían mejorar para atraer más pacientes locales de forma automática.",
+        "gancho_es": "vimos que tu clinica tiene resenas que podrian mejorar para atraer mas pacientes locales de forma automatica.",
         "gancho_en": "we noticed your dental practice could unlock massive local revenue by optimization of your Google Maps reviews structure."
-    },
-    {
-        "es": "agencia inmobiliaria", "en": "real estate agency", 
-        "asunto": "Exclusividad Territorial: Enterprise Omnipresencia 100K", 
-        "asunto_en": "Territorial Exclusivity: Enterprise Omnipresence 100K", 
+    })
+    lista.append({
+        "es": "agencia inmobiliaria", "en": "real estate agency",
+        "asunto": "Exclusividad Territorial: Enterprise Omnipresencia 100K",
+        "asunto_en": "Territorial Exclusivity: Enterprise Omnipresence 100K",
         "env_link": "STRIPE_LINK_OMNIPRESENCIA",
-        "gancho_es": "bloqueamos la captación de propiedades de tu competencia directa mediante automatización exclusiva en tu código postal.",
+        "gancho_es": "bloqueamos la captacion de propiedades de tu competencia directa mediante automatizacion exclusiva en tu codigo postal.",
         "gancho_en": "we enforce strict programmatic deployment to intercept property listings before your local competitors even get a notification."
-    },
-    {
-        "es": "empresa ciberseguridad", "en": "cybersecurity company", 
-        "asunto": "Auditoria de Vulnerabilidad Cyber-Shield Gratuita", 
-        "asunto_en": "Free Cyber-Shield Vulnerability Audit", 
+    })
+    lista.append({
+        "es": "empresa ciberseguridad", "en": "cybersecurity company",
+        "asunto": "Auditoria de Vulnerabilidad Cyber-Shield Gratuita",
+        "asunto_en": "Free Cyber-Shield Vulnerability Audit",
         "env_link": "STRIPE_LINK_CYBER_SHIELD",
-        "gancho_es": "detectamos fugas menores de configuración en puertos públicos indexados que comprometen tu infraestructura.",
+        "gancho_es": "detectamos fugas menores de configuracion en puertos publicos indexados que comprometen tu infraestructura.",
         "gancho_en": "our passive network mapping flagged open parameters that could expose core databases to external scanning vulnerabilities."
-    },
-    {
-        "es": "vendedor amazon", "en": "amazon seller brand", 
-        "asunto": "Prueba de 3 dias: Clonador de Productos a Video Vertical IA", 
-        "asunto_en": "3-Day Trial: AI Product to Vertical Video Cloner", 
+    })
+    lista.append({
+        "es": "vendedor amazon", "en": "amazon seller brand",
+        "asunto": "Prueba de 3 dias: Clonador de Productos a Video Vertical IA",
+        "asunto_en": "3-Day Trial: AI Product to Vertical Video Cloner",
         "env_link": "STRIPE_LINK_CLONADOR_VIDEO",
-        "gancho_es": "transformamos tus listings estáticos de ASIN en anuncios de TikTok estructurados en menos de 45 segundos.",
+        "gancho_es": "transformamos tus listings estaticos de ASIN en anuncios de TikTok en menos de 45 segundos.",
         "gancho_en": "our pipeline automatically parses your current ASIN metrics and synthesizes high-converting TikTok organic creatives."
-    }
-]
+    })
+    lista.append({
+        "es": "tienda online", "en": "ecommerce store",
+        "asunto": "Alerta de Seguridad: Sistema de Malla Blindada para Fugas de Leads",
+        "asunto_en": "Security Alert: Lead Leak Armor Mesh System",
+        "env_link": "STRIPE_LINK_FUGAS_LEADS",
+        "gancho_es": "detectamos que estas perdiendo mas del 35% de intencion de compra en el checkout por falta de persistencia automatica.",
+        "gancho_en": "our audit shows your sales funnel leaks up to 35% of high-intent traffic due to structural tracking drops."
+    })
+    lista.append({
+        "es": "negocio local", "en": "local business",
+        "asunto": "Estrategia Malla Blindada - Generador de Promociones Flash por IA",
+        "asunto_en": "AI Flash Promotions Generator Strategy",
+        "env_link": "STRIPE_LINK_PROMOCIONES_FLASH",
+        "gancho_es": "automatizamos ofertas relampago segmentadas segun el stock inactivo de tu inventario local.",
+        "gancho_en": "our model spins real-time hyper-targeted flash sales depending heavily on your unmoving store stock volumes."
+    })
+    lista.append({
+        "es": "comercio local", "en": "local shop",
+        "asunto": "Optimizador de Ficha Google Maps Automático",
+        "asunto_en": "Automated Google Maps Profile Optimizer",
+        "env_link": "STRIPE_LINK_OPTIMIZADOR_MAPS",
+        "gancho_es": "corregimos las palabras clave de tu ficha para posicionarte en el Top 3 local de busquedas de Google.",
+        "gancho_en": "we restructure your local map parameters to immediately pull your profile into the local Top 3 user searches."
+    })
+    lista.append({
+        "es": "pyme expansion", "en": "growing business",
+        "asunto": "Acceso Prioritario: Malla Blindada 50K",
+        "asunto_en": "Priority Access: Armor Mesh 50K System",
+        "env_link": "STRIPE_LINK_MALLA_50K",
+        "gancho_es": "desplegamos infraestructura automatizada para capturar hasta 50.000 euros en volumen de negocio latente.",
+        "gancho_en": "we set a robust systemic deployment to capture up to 50k in local hidden operational pipeline volume."
+    })
+    lista.append({
+        "es": "empresa premium", "en": "premium company",
+        "asunto": "Contrato Corporativo: Malla Blindada Oro",
+        "asunto_en": "Corporate License: Gold Armor Mesh System",
+        "env_link": "STRIPE_LINK_MALLA_ORO",
+        "gancho_es": "asignamos recursos de computacion prioritarios para blindar tus flujos de adquisicion premium.",
+        "gancho_en": "we distribute sovereign priority node allocation to fully insulate your premium user acquisition tracks."
+    })
+    lista.append({
+        "es": "crypto startup", "en": "web3 platform",
+        "asunto": "Ecosistema de Cobros Malla Blindada Cripto BTC",
+        "asunto_en": "Sovereign Settlement: Crypto BTC Armor Mesh",
+        "env_link": "STRIPE_LINK_MALLA_CRIPTO_BTC",
+        "gancho_es": "conectamos pasarelas de pago alternativas blindadas contra bloqueos bancarios tradicionales.",
+        "gancho_en": "we implement fallback liquidity routing immune to traditional legacy clearing settlement freezes."
+    })
+    lista.append({
+        "es": "consultoria profesional", "en": "professional consulting",
+        "asunto": "Rediseno de Infraestructura: Paginas Web & SEO Avanzado",
+        "asunto_en": "Infrastructure Redesign: Web & Advanced SEO Integration",
+        "env_link": "STRIPE_LINK_PAGINAS_WEB_SEO",
+        "gancho_es": "reconstruimos la arquitectura tecnica de tu web para dominar la intencion de busqueda comercial.",
+        "gancho_en": "we build a modern headless tech stack to claim search engine real estate over commercial search intents."
+    })
+    lista.append({
+        "es": "marca ecom", "en": "amazon trends brand",
+        "asunto": "SaaS Malla Blindada - Tendencias Amazon Pro",
+        "asunto_en": "Armor Mesh SaaS - Amazon Trends Pro Insight",
+        "env_link": "STRIPE_LINK_TENDENCIAS_AMAZON",
+        "gancho_es": "inyectamos analisis predictivo para interceptar tendencias de productos antes de su saturacion.",
+        "gancho_en": "we inject predictive analytical nodes to capture product trends long before volume saturation hits."
+    })
+    return lista
 
-DESTINOS_PROSPECCION = [
-    {"ciudad": "Madrid", "pais": "ES"}, {"ciudad": "Barcelona", "pais": "ES"}, {"ciudad": "Valencia", "pais": "ES"},
-    {"ciudad": "Miami", "pais": "INT"}, {"ciudad": "New York", "pais": "INT"}, {"ciudad": "London", "pais": "INT"}
-]
-
-def registrar_log(mensaje):
-    linea = f"[{datetime.now().strftime('%H:%M:%S')}] {mensaje}"
-    LOGS_SISTEMA.insert(0, linea)
-    if len(LOGS_SISTEMA) > 50: LOGS_SISTEMA.pop()
-    print(linea, flush=True)
-
-def validar_email(email: str) -> bool:
-    if not email: return False
-    email = email.strip().lower()
-    if not EXPRESIÓN_EMAIL.match(email): return False
-    try: usuario, dominio = email.split("@", 1)
-    except Exception: return False
-    if dominio in LISTA_NEGRA_DOMINIOS: return False
-    if any(p in usuario for p in LISTA_NEGRA_PALABRAS) or any(p in dominio for p in LISTA_NEGRA_PALABRAS): return False
-    return True
-
-def registrar_y_verificar_email(email: str) -> bool:
-    email_limpio = email.strip().lower()
-    if not validar_email(email_limpio) or email_limpio in REGISTRO_EMAILS: return False
-    REGISTRO_EMAILS.add(email_limpio)
-    METRICAS_GLOBALES["leads_unicos_cazados"] = len(REGISTRO_EMAILS)
-    return True
-
-def fallback_prospecto(mercado, ciudad):
-    correo_fb = f"contacto@{mercado.replace(' ', '')}{ciudad.lower().replace(' ', '')}.com"
-    if registrar_y_verificar_email(correo_fb): 
-        return [{"nombre": mercado.upper(), "email": correo_fb, "web": "Fallback Automático", "fuente": "Algoritmo Generativo"}]
-    return []
-
-# ==============================================================================
-# 3. [MEJORADO] COMPONENTE AVANZADO DE EXTRACCIÓN DE CLIENTES (TAVILY + IA)
-# ==============================================================================
-def extraer_leads_tavily(mercado, ciudad):
-    if not api_tavily or not api_openai: return fallback_prospecto(mercado, ciudad)
-    
-    # Queries diversificadas de alta intención para barrer correos y metadata real
-    queries = [
-        f'"{mercado}" "{ciudad}" email OR correo OR contacto',
-        f'site:://linkedin.com "{mercado}" "{ciudad}"',
-        f'"{mercado}" "{ciudad}" "@gmail.com" OR "@" "contacto"'
-    ]
-    
-    datos_contexto = ""
-    for query_busqueda in queries:
-        try:
-            # depth="advanced" para forzar raspado profundo de URLs de empresas
-            raw_context = api_tavily.get_search_context(query=query_busqueda, search_depth="advanced")
-            if raw_context and len(raw_context) > 200:
-                datos_contexto += f"\n--- Resultado Consulta [{query_busqueda}] ---\n" + raw_context
-                METRICAS_GLOBALES["busquedas_tavily_exitosas"] += 1
-        except Exception as e:
-            registrar_log(f"⚠️ [TAVILY MULTI-QUERY] Error parcial barriendo query '{query_busqueda}': {str(e)}")
-            
-    if not datos_contexto.strip():
-        METRICAS_GLOBALES["busquedas_tavily_fallidas"] += 1
-        return fallback_prospecto(mercado, ciudad)
-    
-    try:
-        prompt_sistema = (
-            "Eres un agente scraper experto en OSINT corporativo. Tu misión es extraer leads empresariales verídicos.\n"
-            "Analiza el contexto y devuelve un objeto JSON estructurado con una lista de 'leads'.\n"
-            "Cada lead DEBE contener obligatoriamente:\n"
-            "- 'nombre': Razón social de la empresa o nombre del profesional.\n"
-            "- 'email': Dirección de correo corporativo verificable.\n"
-            "- 'web': URL del sitio o perfil de red social de donde se extrajo.\n"
-            "- 'contexto_empresa': Una breve frase describiendo a qué se dedican de forma específica.\n\n"
-            "Regla estricta: No inventes datos. Si no hay correos reales, devuelve la lista vacía. No uses bloques markdown ```json."
-        )
-        
-        respuesta_ia = api_openai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": prompt_sistema},
-                {"role": "user", "content": f"Datos capturados en tiempo real:\n{datos_contexto}"}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.1
-        )
-        
-        res_json = json.loads(respuesta_ia.choices.message.content)
-        leads_filtrados = []
-        
-        for l in res_json.get("leads", []):
-            correo = l.get("email", "").strip().lower()
-            if registrar_y_verificar_email(correo):
-                l["email"] = correo
-                leads_filtrados.append(l)
-                registrar_log(f"🎯 [LEAD EXTRAÍDO] Encontrado: {l['nombre']} ({correo}) de {l.get('web', 'Desconocido')}")
-                
-        return leads_filtrados if leads_filtrados else fallback_prospecto(mercado, ciudad)
-        
-    except Exception as e:
-        registrar_log(f"❌ [EXTRACTOR IA] Error de parseo crítico en extracción: {str(e)}")
-        return fallback_prospecto(mercado, ciudad)
+MERCADOS_OBJETIVO = cargar_mercados_seguros()
 
 # ==============================================================================
-# 4. [MEJORADO] SISTEMA DE ENVÍO DE CORREOS HIPER-PERSONALIZADOS
+# 4. ENDPOINTS DE FLASK ACCESIBLES
 # ==============================================================================
-def enviar_cold_email_real(lead, mercado_info, idioma, stripe_link):
-    if not SENDER_KEY:
-        registrar_log(f"🚫 [EMAIL SIMULADO] Lead: {lead['email']} - Token no configurado.")
-        return False
-        
-    # Construcción de plantilla ultra-personalizada basada en metadata inyectada
-    nombre_target = lead.get("nombre", "Director").title()
-    meta_contexto = lead.get("contexto_empresa", "tu presencia comercial en el sector")
-    gancho = mercado_info["gancho_es"] if idioma == "es" else mercado_info["gancho_en"]
-    
-    if idioma == "es":
+@app.route('/')
+def index():
+    return jsonify({
+        "status": "Motor Operativo",
+        "mercados": len(MERCADOS_OBJETIVO),
+        "metricas": METRICAS_GLOBALES
+    })
+
+@app.route('/webhook', methods=['POST'])
+def stripe_webhook():
+    event = request.get_json() or {}
+    tipo = event.get('type', '')
+    if tipo in ['checkout.session.completed', 'charge.succeeded']:
+        data_obj = event.get('data', {}).get('object', {})
+        monto = data_obj.get('amount_total', data_obj.get('amount', 0)) / 100.0
+        email = data_obj.get('customer_details', {}).get('email', 'anonimo@email.com')
+        METRICAS_GLOBALES["ventas_totales_recibidas"] += 1
+        METRICAS_GLOBALES["ingresos_acumulados_eur"] += monto
+        print(f"[LIVE LOG] Pago registrado con éxito: {monto} EUR de {email}", flush=True)
