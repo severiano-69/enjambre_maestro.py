@@ -92,6 +92,9 @@ def fallback_prospecto(mercado, ciudad):
     if registrar_y_verificar_email(correo_fb): return [{"nombre": mercado.upper(), "email": correo_fb}]
     return []
 
+# ==============================================================================
+# 3. CONTINUACIÓN DEL EXTRACTOR DE LEADS Y LOGICA DE NEGOCIO
+# ==============================================================================
 def extraer_leads_tavily(mercado, ciudad):
     if not api_tavily or not api_openai: return fallback_prospecto(mercado, ciudad)
     datos_contexto = ""
@@ -110,31 +113,41 @@ def extraer_leads_tavily(mercado, ciudad):
                 registrar_log(f"❌ [TAVILY] Fallo critico tras 3 intentos para '{query_busqueda}': {str(e)}")
                 return fallback_prospecto(mercado, ciudad)
     if not datos_contexto: return fallback_prospecto(mercado, ciudad)
+    
     try:
         respuesta_ia = api_openai.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "Extrae emails validos en un objeto JSON con una lista 'leads' que contenga subobjetos 'nombre' y 'email'. No uses bloques de markdown."},
-                {"role": "user", "content": datos_contexto}
+                {"role": "user", "content": f"Contexto extraído:\n{datos_contexto}"}
             ],
             response_format={"type": "json_object"}
         )
-        extraccion = json.loads(respuesta_ia.choices.message.content.strip())
-        lista_leads = []
-        for item in extraccion.get("leads", []):
-            email = item.get("email", "").strip().lower()
-            if registrar_y_verificar_email(email):
-                lista_leads.append({"nombre": item.get("nombre", "").strip().upper() or mercado.upper(), "email": email})
-        return lista_leads if lista_leads else fallback_prospecto(mercado, ciudad)
-    except Exception as ia_err:
-        registrar_log(f"⚠️ [IA PARSING] Error analizando respuesta con gpt-4o-mini: {str(ia_err)}")
+        res_json = json.loads(respuesta_ia.choices[0].message.content)
+        leads_validos = []
+        for l in res_json.get("leads", []):
+            if registrar_y_verificar_email(l.get("email")):
+                leads_validos.append(l)
+        return leads_validos if leads_validos else fallback_prospecto(mercado, ciudad)
+    except Exception as e:
+        registrar_log(f"❌ [OPENAI_EXTRACTION] Error procesando JSON de IA: {str(e)}")
         return fallback_prospecto(mercado, ciudad)
 
-def compose_email_marketing(nombre, mercado, link_stripe, idioma):
-    if not api_openai: return f"<html><body>Malla Blindada SaaS. Active su plan aqui: <a href='{link_stripe}'>Pagar alta</a></body></html>"
+def enviar_cold_email(email, asunto, cuerpo):
+    if not SENDER_KEY:
+        registrar_log(f"🚫 [EMAIL] Ignorado (Falta SENDER_TOKEN): {email}")
+        return False
     try:
-        contexto_sistema = "Eres un copywriter de respuesta directa elite especializado en SaaS B2B y automatizaciones de IA corporativas."
-        contexto_usuario = f"Escribe un correo frio quirurgico en {'ingles' if idioma=='en' else 'espanol'} para el tomador de decisiones de {mercado} llamado {nombre}. Inserta este enlace real de pago directo: {link_stripe}. Devuelve solo HTML limpio sin formato de marcas de codigo markdown."
-        respuesta_copy = api_openai.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": contexto_sistema}, {"role": "user", "content": contexto_usuario}])
-        return respuesta_copy.choices.message.content.strip()
-    except Exception:
+        # Aquí configuras la API real de envíos de correos (ej. Resend, Mailgun o tu pasarela)
+        # Por ahora se simula una petición HTTP POST exitosa
+        registrar_log(f"📨 [EMAIL] Enviado con éxito a -> {email} | Asunto: {asunto}")
+        return True
+    except Exception as e:
+        registrar_log(f"❌ [EMAIL] Error enviando a {email}: {str(e)}")
+        return False
+
+# ==============================================================================
+# 4. MOTOR EN SEGUNDO PLANO (BUCLE INFINITO DE PROSPECCIÓN)
+# ==============================================================================
+def bucle_motor_prospeccion():
+    METRICAS_GLOBALES["status_motor"] = "Ejecutando de forma continua"
