@@ -11,7 +11,7 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Asegura que Render transmita los prints en vivo de inmediato sin retrasos
+# Asegura la transmisión de logs en vivo sin retención en búfer
 os.environ["PYTHONUNBUFFERED"] = "1"
 
 # ==============================================================================
@@ -30,7 +30,8 @@ try:
         api_openai = OpenAI(api_key=OPENAI_KEY)
     else:
         api_openai = None
-except Exception:
+except Exception as e:
+    print(f"[WARN] Error inicializando OpenAI: {e}", flush=True)
     api_openai = None
 
 try:
@@ -39,7 +40,8 @@ try:
         api_tavily = TavilyClient(api_key=TAVILY_KEY)
     else:
         api_tavily = None
-except Exception:
+except Exception as e:
+    print(f"[WARN] Error inicializando Tavily: {e}", flush=True)
     api_tavily = None
 
 # ==============================================================================
@@ -152,7 +154,7 @@ def cargar_mercados_seguros():
         "asunto": "Rediseno de Infraestructura: Paginas Web & SEO Avanzado",
         "asunto_en": "Infrastructure Redesign: Web & Advanced SEO Integration",
         "env_link": "STRIPE_LINK_PAGINAS_WEB_SEO",
-        "gancho_es": "reconstruimos la arquitectura tecnica de tu web para dominar la intencion de busqueda comercial.",
+        "gancho_es": "reconstruimos la architecture tecnica de tu web para dominar la intencion de busqueda comercial.",
         "gancho_en": "we build a modern headless tech stack to claim search engine real estate over commercial search intents."
     })
     lista.append({
@@ -187,5 +189,3 @@ def stripe_webhook():
         monto = data_obj.get('amount_total', data_obj.get('amount', 0)) / 100.0
         email = data_obj.get('customer_details', {}).get('email', 'anonimo@email.com')
         METRICAS_GLOBALES["ventas_totales_recibidas"] += 1
-        METRICAS_GLOBALES["ingresos_acumulados_eur"] += monto
-        print(f"[LIVE LOG] Pago registrado con éxito: {monto} EUR de {email}", flush=True)
