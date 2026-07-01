@@ -17,4 +17,5 @@ COPY . .
 EXPOSE 10000
 
 # Ejecución nativa directa para evitar fallos de hilos y asegurar logs inmediatos
-CMD ["python", "enjambre_maestro.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "enjambre_maestro:app"]
+
