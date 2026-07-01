@@ -170,10 +170,7 @@ def cargar_mercados_seguros():
 MERCADOS_OBJETIVO = cargar_mercados_seguros()
 
 # ==============================================================================
-@app.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({"status": "healthy", "timestamp": str(datetime.now())}), 200
-
+# 4. ENDPOINTS DE FLASK ACCESIBLES
 # ==============================================================================
 @app.route('/')
 def index():
@@ -183,6 +180,10 @@ def index():
         "metricas": METRICAS_GLOBALES
     })
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy", "timestamp": str(datetime.now())}), 200
+
 @app.route('/webhook', methods=['POST'])
 def stripe_webhook():
     event = request.get_json() or {}
@@ -190,5 +191,3 @@ def stripe_webhook():
     if tipo in ['checkout.session.completed', 'charge.succeeded']:
         data_obj = event.get('data', {}).get('object', {})
         monto = data_obj.get('amount_total', data_obj.get('amount', 0)) / 100.0
-        email = data_obj.get('customer_details', {}).get('email', 'anonimo@email.com')
-        METRICAS_GLOBALES["ventas_totales_recibidas"] += 1
