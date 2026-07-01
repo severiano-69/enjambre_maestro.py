@@ -170,7 +170,10 @@ def cargar_mercados_seguros():
 MERCADOS_OBJETIVO = cargar_mercados_seguros()
 
 # ==============================================================================
-# 4. ENDPOINTS DE FLASK ACCESIBLES
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy", "timestamp": str(datetime.now())}), 200
+
 # ==============================================================================
 @app.route('/')
 def index():
