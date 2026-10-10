@@ -9,7 +9,7 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-# Asegura que Render muestre los logs al instante en la consola sin retrasos
+# Asegura que Render muestre los logs al instante en la consola sin almacenamiento en caché
 os.environ["PYTHONUNBUFFERED"] = "1"
 
 # ==============================================================================
@@ -55,7 +55,7 @@ METRICAS_SISTEMA = {
     "misiones_defensivas_completadas": 1,
     "ciclos_de_patrulla_limpios": 0,
     "ultimo_chequeo_precios": "Nunca",
-    "oraculo_origen": "CryptoCompare Public Mirror API"
+    "oraculo_origen": "CryptoCompare Public Mirror API Live"
 }
 
 # ==============================================================================
@@ -65,7 +65,7 @@ METRICAS_SISTEMA = {
 def servidor_home():
     return jsonify({
         "motor_status": METRICAS_SISTEMA["status_motor"],
-        "enjambre_maestro_version": "24.1 - Tri-Asset Active Portfolio Core",
+        "enjambre_maestro_version": "25.0 - Multi-Asset Live Core",
         "sistema_trading": CONFIG_TRADING,
         "auditoria_fondos": METRICAS_SISTEMA
     }), 200
@@ -76,8 +76,9 @@ def servidor_home():
 def obtener_precio_en_vivo(crypto):
     """Consulta la cotizacion de mercado usando la URL exacta de la API publica"""
     try:
-        # RUTA CORREGIDA DEFINITIVA: Formato oficial con subdominio min-api completo
+        # RUTA CORREGIDA DE RAÍZ: Formato oficial con el subdominio min-api completo y estable
         url = f"https://cryptocompare.com{crypto}&tsyms=EUR"
+        # Forzamos un timeout estricto de 5 segundos para que el bot nunca se quede colgado en la nube
         respuesta = requests.get(url, timeout=5)
         if respuesta.status_code == 200:
             datos = respuesta.json()
@@ -97,19 +98,19 @@ def bucle_motor_maestro():
             precio_sol = obtener_precio_en_vivo("SOL")
             if precio_sol and precio_sol > 0:
                 CONFIG_TRADING["cartera_activa_bitvavo"]["SOL"]["precio_actual_ticker"] = precio_sol
-                print(f"👀 [RADAR] SOL/EUR en vivo: {precio_sol} EUR", flush=True)
+                print(f"👀 [RADAR] SOL/EUR en vivo: {precio_sol} EUR (Objetivo Soporte: 135.0 EUR)", flush=True)
 
             # 2. Consultar ADA en tiempo real sin bloqueos
             precio_ada = obtener_precio_en_vivo("ADA")
             if precio_ada and precio_ada > 0:
                 CONFIG_TRADING["cartera_activa_bitvavo"]["ADA"]["precio_actual_ticker"] = precio_ada
-                print(f"👀 [RADAR] ADA/EUR en vivo: {precio_ada} EUR", flush=True)
+                print(f"👀 [RADAR] ADA/EUR en vivo: {precio_ada} EUR (Objetivo Suelo: 0.35 EUR)", flush=True)
 
             # 3. Consultar XRP en tiempo real sin bloqueos
             precio_xrp = obtener_precio_en_vivo("XRP")
             if precio_xrp and precio_xrp > 0:
                 CONFIG_TRADING["cartera_activa_bitvavo"]["XRP"]["precio_actual_ticker"] = precio_xrp
-                print(f"👀 [RADAR] XRP/EUR en vivo: {precio_xrp} EUR", flush=True)
+                print(f"👀 [RADAR] XRP/EUR en vivo: {precio_xrp} EUR (Objetivo Recompra: 1.18 EUR)", flush=True)
 
             # Actualizar datos del panel corporativo
             METRICAS_SISTEMA["ciclos_de_patrulla_limpios"] += 1
@@ -119,10 +120,11 @@ def bucle_motor_maestro():
         except Exception as e:
             print(f"❌ [ALERTA MOTOR] Quiebre en el ciclo de datos: {e}", flush=True)
             
+        # Espera un minuto exacto antes de la siguiente ronda de patrulla
         time.sleep(60)
 
 if __name__ == '__main__':
-    print("Enjambre Maestro v24.1 Online - Malla del Tridente Activa.", flush=True)
+    print("Enjambre Maestro v25.0 Online - Malla del Tridente Activa.", flush=True)
     
     # Iniciar hilo de patrulla reactivo en segundo plano
     threading.Thread(target=bucle_motor_maestro, daemon=True).start()
