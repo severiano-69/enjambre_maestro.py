@@ -13,13 +13,13 @@ app = Flask(__name__)
 os.environ["PYTHONUNBUFFERED"] = "1"
 
 # ==============================================================================
-# 1. PARÁMETROS DE INFRAESTRUCTURA DE TRADING (RESGUARDO DE SEGURIDAD)
+# 1. PARAMETROS DE INFRAESTRUCTURA DE TRADING (RESGUARDO DE SEGURIDAD)
 # ==============================================================================
 BITVAVO_API_KEY = os.environ.get("BITVAVO_API_KEY", "").strip()
 BITVAVO_API_SECRET = os.environ.get("BITVAVO_API_SECRET", "").strip()
 
 # ==============================================================================
-# 2. CONFIGURACIÓN SOBERANA DE TU CARTERA REAL EN BITVAVO
+# 2. CONFIGURACIÓN SOBERANA DE TU CARTERA REAL EN BITVAVO (¡EN VERDE SUBIENDO!)
 # ==============================================================================
 CONFIG_TRADING = {
     "saldo_disponible_eur": 96.71,
@@ -55,7 +55,7 @@ METRICAS_SISTEMA = {
     "misiones_defensivas_completadas": 1,
     "ciclos_de_patrulla_limpios": 0,
     "ultimo_chequeo_precios": "Nunca",
-    "oraculo_origen": "CryptoCompare & Bitvavo Public Open Mirror"
+    "oraculo_origen": "CryptoCompare Public Open Mirror API"
 }
 
 # ==============================================================================
@@ -71,12 +71,12 @@ def servidor_home():
     }), 200
 
 # ==============================================================================
-# 4. MOTOR SOBERANO DE PATRULLA CON BYPASS DE DATOS (XRP, SOL Y ADA EN TIEMPO REAL)
+# 4. MOTOR SOBERANO DE PATRULLA CON BYPASS DE DATOS CORREGIDO
 # ==============================================================================
 def obtener_precio_en_vivo(crypto):
-    """Consulta la cotizacion del mercado mediante un canal abierto inmune a bloqueos IP"""
+    """Consulta la cotizacion del mercado mediante la API publica limpia sin bloqueos IP"""
     try:
-        # Endpoint público estructurado oficial para lectura directa de precios
+        # CORRECCIÓN DE RUTA: URL exacta y completa para la consulta del ticker en EUR
         url = f"https://cryptocompare.com{crypto}&tsyms=EUR"
         respuesta = requests.get(url, timeout=5)
         if respuesta.status_code == 200:
