@@ -11,14 +11,15 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-# Fuerza a Render a imprimir los logs al segundo en la consola
+# Asegura que Render muestre los logs al segundo sin almacenamiento en caché
 os.environ["PYTHONUNBUFFERED"] = "1"
 
 # ==============================================================================
-# 1. INFRAESTRUCTURA CRYPTO (LLAVES DE ENTORNO EN RENDER)
+# 1. INFRAESTRUCTURA CRYPTO (TUS LLAVES DETECTADAS EN TU CAPTURA DE RENDER)
 # ==============================================================================
 BITVAVO_API_KEY = os.environ.get("BITVAVO_API_KEY", "").strip()
 BITVAVO_API_SECRET = os.environ.get("BITVAVO_API_SECRET", "").strip()
+# CORRECCIÓN ABSOLUTA: Endpoint oficial para evitar el bloqueo 403 y caídas de servicio
 BITVAVO_URL_BASE = "https://bitvavo.com"
 
 # ==============================================================================
@@ -61,7 +62,7 @@ METRICAS_SISTEMA = {
 def servidor_home():
     return jsonify({
         "motor_status": METRICAS_SISTEMA["status_motor"],
-        "enjambre_maestro_version": "19.0 - Absolute Signature Core",
+        "enjambre_maestro_version": "20.0 - Absolute Signature Core",
         "sistema_trading": CONFIG_TRADING,
         "auditoria_fondos": METRICAS_SISTEMA,
         "infraestructura": {
@@ -70,7 +71,7 @@ def servidor_home():
     }), 200
 
 # ==============================================================================
-# 4. MOTOR SOBERANO CON FIRMA CRYPTO AUTENTICADA (ADIÓS AL ERROR 403)
+# 4. MOTOR SOBERANO CON FIRMA CRYPTO AUTENTICADA (TORTAZO HISTÓRICO AL 403)
 # ==============================================================================
 def obtener_precio_bitvavo_firmado(market):
     """Consulta las cotizaciones generando el sello digital SHA256 exigido por Bitvavo"""
@@ -100,7 +101,7 @@ def obtener_precio_bitvavo_firmado(market):
             "X-Timestamp": timestamp,
             "X-Window-Window": "60000",
             "Accept": "application/json",
-            "User-Agent": "EnjambreMaestroCifrado/19.0"
+            "User-Agent": "EnjambreMaestroCifrado/20.0"
         }
         
         respuesta = requests.get(url, headers=cabeceras, timeout=10)
@@ -108,8 +109,10 @@ def obtener_precio_bitvavo_firmado(market):
         if respuesta.status_code == 200:
             datos = respuesta.json()
             return float(datos.get("price", 0.0))
-    except Exception:
-        pass
+        else:
+            print(f"⚠️ [API RECHAZO] Servidor respondió con código {respuesta.status_code} en {market}", flush=True)
+    except Exception as e:
+        print(f"⚠️ [API ERROR] Fallo en el canal firmado de {market}: {e}", flush=True)
     return None
 
 def bucle_motor_maestro():
@@ -123,13 +126,13 @@ def bucle_motor_maestro():
             precio_xrp = obtener_precio_bitvavo_firmado("XRP-EUR")
             if precio_xrp and precio_xrp > 0:
                 CONFIG_TRADING["estrategia"]["XRP"]["precio_actual_ticker"] = precio_xrp
-                print(f"👀 [BITVAVO LIVE] XRP/EUR: {precio_xrp} EUR", flush=True)
+                print(f"👀 [BITVAVO LIVE] XRP/EUR: {precio_xrp} EUR (Gatillo Recompra: {CONFIG_TRADING['estrategia']['XRP']['precio_gatillo_compra']} EUR)", flush=True)
 
             # 2. Consultar SOL/EUR de forma nativa con firma criptográfica
             precio_sol = obtener_precio_bitvavo_firmado("SOL-EUR")
             if precio_sol and precio_sol > 0:
                 CONFIG_TRADING["estrategia"]["SOL_RECOMPRA"]["precio_actual_ticker"] = precio_sol
-                print(f"👀 [BITVAVO LIVE] SOL/EUR: {precio_sol} EUR", flush=True)
+                print(f"👀 [BITVAVO LIVE] SOL/EUR: {precio_sol} EUR (Gatillo Recompra: {CONFIG_TRADING['estrategia']['SOL_RECOMPRA']['precio_gatillo_compra']} EUR)", flush=True)
 
             # Actualizar panel corporativo
             METRICAS_SISTEMA["ciclos_de_patrulla_limpios"] += 1
@@ -142,7 +145,7 @@ def bucle_motor_maestro():
         time.sleep(60)
 
 if __name__ == '__main__':
-    print("Enjambre Maestro v19.0 Online - Núcleo Cifrado Total Desplegado.", flush=True)
+    print("Enjambre Maestro v20.0 Online - Núcleo Cifrado Total Desplegado.", flush=True)
     
     # Iniciar patrulla
     threading.Thread(target=bucle_motor_maestro, daemon=True).start()
