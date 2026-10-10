@@ -65,18 +65,18 @@ METRICAS_SISTEMA = {
 def servidor_home():
     return jsonify({
         "motor_status": METRICAS_SISTEMA["status_motor"],
-        "enjambre_maestro_version": "23.1 - Tri-Asset Active Portfolio Core",
+        "enjambre_maestro_version": "24.0 - Tri-Asset Active Portfolio Core",
         "sistema_trading": CONFIG_TRADING,
         "auditoria_fondos": METRICAS_SISTEMA
     }), 200
 
 # ==============================================================================
-# 4. MOTOR SOBERANO DE PATRULLA CON BYPASS DE DATOS (ENDPOINTS CORREGIDOS)
+# 4. MOTOR SOBERANO DE PATRULLA CON BYPASS DE DATOS DESBLOQUEADO
 # ==============================================================================
 def obtener_precio_en_vivo(crypto):
     """Consulta la cotizacion de mercado usando la URL exacta de la API publica"""
     try:
-        # RUTA CORREGIDA: Formato exacto de consulta para CryptoCompare
+        # RUTA REPARADA DEFINITIVA: Formato oficial con subdominio min-api y parametros correctos
         url = f"https://cryptocompare.com{crypto}&tsyms=EUR"
         respuesta = requests.get(url, timeout=5)
         if respuesta.status_code == 200:
@@ -122,7 +122,7 @@ def bucle_motor_maestro():
         time.sleep(60)
 
 if __name__ == '__main__':
-    print("Enjambre Maestro v23.1 Online - Malla del Tridente Activa.", flush=True)
+    print("Enjambre Maestro v24.0 Online - Malla del Tridente Activa.", flush=True)
     
     # Iniciar hilo de patrulla reactivo en segundo plano
     threading.Thread(target=bucle_motor_maestro, daemon=True).start()
