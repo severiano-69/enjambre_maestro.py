@@ -13,7 +13,7 @@ app = Flask(__name__)
 os.environ["PYTHONUNBUFFERED"] = "1"
 
 # ==============================================================================
-# 1. PARÁMETROS DE INFRAESTRUCTURA DE TRADING (RESGUARDO DE SEGURIDAD)
+# 1. PARAMETROS DE INFRAESTRUCTURA DE TRADING (RESGUARDO DE SEGURIDAD)
 # ==============================================================================
 BITVAVO_API_KEY = os.environ.get("BITVAVO_API_KEY", "").strip()
 BITVAVO_API_SECRET = os.environ.get("BITVAVO_API_SECRET", "").strip()
@@ -50,12 +50,12 @@ CONFIG_TRADING = {
 }
 
 METRICAS_SISTEMA = {
-    "status_motor": "CONECTADO A FILTRADO DE MERCADO - TIEMPO REAL OK",
+    "status_motor": "CONECTADO A ORACULO GLOBAL - TIEMPO REAL OK",
     "capital_liquido_protegido_eur": 96.71,
     "misiones_defensivas_completadas": 1,
     "ciclos_de_patrulla_limpios": 0,
     "ultimo_chequeo_precios": "Nunca",
-    "oraculo_origen": "CryptoCompare Public Mirror API Live"
+    "oraculo_origen": "CryptoCompare Public Real-Time Feed"
 }
 
 # ==============================================================================
@@ -65,20 +65,18 @@ METRICAS_SISTEMA = {
 def servidor_home():
     return jsonify({
         "motor_status": METRICAS_SISTEMA["status_motor"],
-        "enjambre_maestro_version": "25.0 - Multi-Asset Live Core",
+        "enjambre_maestro_version": "25.1 - Multi-Feed Live Core",
         "sistema_trading": CONFIG_TRADING,
         "auditoria_fondos": METRICAS_SISTEMA
     }), 200
 
 # ==============================================================================
-# 4. MOTOR SOBERANO DE PATRULLA CON BYPASS DE DATOS DESBLOQUEADO
+# 4. MOTOR SOBERANO DE PATRULLA CON BYPASS DE DATOS (ADIOS AL ERROR 403)
 # ==============================================================================
 def obtener_precio_en_vivo(crypto):
-    """Consulta la cotizacion de mercado usando la URL exacta de la API publica"""
+    """Consulta la cotizacion del mercado mediante canal abierto libre de bloqueos"""
     try:
-        # RUTA CORREGIDA DE RAÍZ: Formato oficial con el subdominio min-api completo y estable
         url = f"https://cryptocompare.com{crypto}&tsyms=EUR"
-        # Forzamos un timeout estricto de 5 segundos para que el bot nunca se quede colgado en la nube
         respuesta = requests.get(url, timeout=5)
         if respuesta.status_code == 200:
             datos = respuesta.json()
@@ -89,30 +87,30 @@ def obtener_precio_en_vivo(crypto):
 
 def bucle_motor_maestro():
     global METRICAS_SISTEMA, CONFIG_TRADING
-    print("🚀 [MOTOR] Inicializando patrulla del tridente en verde sobre canal blindado...", flush=True)
+    print("🚀 [MOTOR] Inicializando patrulla directa a traves de oraculo inmune a bloqueos...", flush=True)
     time.sleep(3)
     
     while True:
         try:
-            # 1. Consultar SOL en tiempo real sin bloqueos
+            # 1. Consultar SOL en tiempo real sin pasar por el bloqueo IP de Bitvavo
             precio_sol = obtener_precio_en_vivo("SOL")
             if precio_sol and precio_sol > 0:
                 CONFIG_TRADING["cartera_activa_bitvavo"]["SOL"]["precio_actual_ticker"] = precio_sol
-                print(f"👀 [RADAR] SOL/EUR en vivo: {precio_sol} EUR (Objetivo Soporte: 135.0 EUR)", flush=True)
+                print(f"👀 [ORACULO] SOL/EUR en directo: {precio_sol} EUR (Gatillo: 135.0 EUR)", flush=True)
 
-            # 2. Consultar ADA en tiempo real sin bloqueos
+            # 2. Consultar ADA en tiempo real sin pasar por el bloqueo IP de Bitvavo
             precio_ada = obtener_precio_en_vivo("ADA")
             if precio_ada and precio_ada > 0:
                 CONFIG_TRADING["cartera_activa_bitvavo"]["ADA"]["precio_actual_ticker"] = precio_ada
-                print(f"👀 [RADAR] ADA/EUR en vivo: {precio_ada} EUR (Objetivo Suelo: 0.35 EUR)", flush=True)
+                print(f"👀 [ORACULO] ADA/EUR en directo: {precio_ada} EUR (Gatillo: 0.35 EUR)", flush=True)
 
-            # 3. Consultar XRP en tiempo real sin bloqueos
+            # 3. Consultar XRP en tiempo real sin pasar por el bloqueo IP de Bitvavo
             precio_xrp = obtener_precio_en_vivo("XRP")
             if precio_xrp and precio_xrp > 0:
                 CONFIG_TRADING["cartera_activa_bitvavo"]["XRP"]["precio_actual_ticker"] = precio_xrp
-                print(f"👀 [RADAR] XRP/EUR en vivo: {precio_xrp} EUR (Objetivo Recompra: 1.18 EUR)", flush=True)
+                print(f"👀 [ORACULO] XRP/EUR en directo: {precio_xrp} EUR (Gatillo: 1.18 EUR)", flush=True)
 
-            # Actualizar datos del panel corporativo
+            # Actualizar panel corporativo de Severiano
             METRICAS_SISTEMA["ciclos_de_patrulla_limpios"] += 1
             METRICAS_SISTEMA["ultimo_chequeo_precios"] = datetime.now().strftime("%H:%M:%S")
             METRICAS_SISTEMA["status_motor"] = "PATRULLANDO EN TIEMPO REAL - CONEXION OK"
@@ -120,11 +118,10 @@ def bucle_motor_maestro():
         except Exception as e:
             print(f"❌ [ALERTA MOTOR] Quiebre en el ciclo de datos: {e}", flush=True)
             
-        # Espera un minuto exacto antes de la siguiente ronda de patrulla
         time.sleep(60)
 
 if __name__ == '__main__':
-    print("Enjambre Maestro v25.0 Online - Malla del Tridente Activa.", flush=True)
+    print("Enjambre Maestro v25.1 Online - Oraculo Inmune Desplegado.", flush=True)
     
     # Iniciar hilo de patrulla reactivo en segundo plano
     threading.Thread(target=bucle_motor_maestro, daemon=True).start()
